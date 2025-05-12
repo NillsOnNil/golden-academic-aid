@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -19,6 +20,13 @@ export default {
 		},
 		extend: {
 			colors: {
+				// College ERP theme colors
+				college: {
+					gold: "#D4AF37",
+					black: "#000000",
+					dark: "#222222",
+					light: "#F5F5F5",
+				},
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
