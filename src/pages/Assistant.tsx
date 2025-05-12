@@ -16,7 +16,8 @@ interface Message {
 }
 
 const GEMINI_API_KEY = 'AIzaSyBWdNy1-3VKXKCCFNs9R_iOIjQKEnxE9GU';
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+// Updated API URL to the correct endpoint
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent';
 
 const Assistant = () => {
   const location = useLocation();
@@ -39,7 +40,7 @@ const Assistant = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Generate response using Google Gemini API
+  // Generate response using Google Gemini API with updated endpoint
   const generateGeminiResponse = async (query: string): Promise<string> => {
     try {
       const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
@@ -50,7 +51,6 @@ const Assistant = () => {
         body: JSON.stringify({
           contents: [
             {
-              role: 'user',
               parts: [
                 {
                   text: `You are a helpful college assistant. Please answer the following question concisely and accurately: ${query}`
@@ -73,6 +73,7 @@ const Assistant = () => {
       }
 
       const data = await response.json();
+      // Updated response parsing for the v1 API format
       return data.candidates[0].content.parts[0].text;
     } catch (error) {
       console.error('Error generating Gemini response:', error);
