@@ -15,7 +15,7 @@ interface Message {
   timestamp: Date;
 }
 
-const GEMINI_API_KEY = 'AIzaSyBWdNy1-3VKXKCCFNs9R_iOIjQKEnxE9GU';
+const GEMINI_API_KEY = 'AIzaSyAKNOEHFQfOXjzV3exJdvwzBDkwWaIZ6RE';
 // Updated API URL to the correct endpoint
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent';
 
