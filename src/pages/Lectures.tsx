@@ -1,9 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Video, Search, ExternalLink, Calendar } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -15,6 +16,21 @@ interface VideoResult {
   publishedAt: string;
 }
 
+// Available subjects for the dropdown
+const availableSubjects = [
+  'Computer Science',
+  'Mathematics',
+  'Physics',
+  'Chemistry',
+  'Biology',
+  'Economics',
+  'History',
+  'Literature',
+  'Engineering'
+];
+
+const YOUTUBE_API_KEY = 'AIzaSyASbpVgtjiCncjjzJm8qSkajW7fK8SHO_w';
+
 const Lectures = () => {
   const location = useLocation();
   const initialSearchQuery = location.state?.searchQuery || '';
@@ -24,48 +40,39 @@ const Lectures = () => {
   const [results, setResults] = useState<VideoResult[]>([]);
   const { toast } = useToast();
 
-  // Mock YouTube search functionality
-  // In real application, this would connect to the YouTube Data API
-  const searchYouTubeLectures = async (query: string) => {
+  useEffect(() => {
+    // If we have an initial search query from navigation, perform search
+    if (initialSearchQuery) {
+      handleSearch(new Event('submit') as unknown as React.FormEvent);
+    }
+  }, []);
+
+  // Search YouTube using the YouTube Data API
+  const searchYouTubeVideos = async (query: string) => {
     setLoading(true);
     
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const fullQuery = subject ? `${subject} ${query}` : query;
+      const encodedQuery = encodeURIComponent(fullQuery);
       
-      // Mock data - in real app, this would come from YouTube API
-      const mockYouTubeResults: VideoResult[] = [
-        {
-          id: 'video1',
-          title: `${query} - Comprehensive Lecture Part 1`,
-          description: 'Learn the fundamentals and core concepts.',
-          thumbnail: 'https://via.placeholder.com/320x180.png?text=Lecture+Thumbnail',
-          publishedAt: '2023-09-15'
-        },
-        {
-          id: 'video2',
-          title: `Advanced ${query} Concepts`,
-          description: 'Deep dive into advanced topics and applications.',
-          thumbnail: 'https://via.placeholder.com/320x180.png?text=Advanced+Lecture',
-          publishedAt: '2023-10-02'
-        },
-        {
-          id: 'video3',
-          title: `${query} Tutorial for Beginners`,
-          description: 'Step-by-step guide for beginners.',
-          thumbnail: 'https://via.placeholder.com/320x180.png?text=Tutorial',
-          publishedAt: '2023-08-20'
-        },
-        {
-          id: 'video4',
-          title: `${query} - Practice Problems and Solutions`,
-          description: 'Work through common problems with detailed solutions.',
-          thumbnail: 'https://via.placeholder.com/320x180.png?text=Practice+Problems',
-          publishedAt: '2023-11-05'
-        }
-      ];
+      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodedQuery}&maxResults=4&type=video&safeSearch=strict&key=${YOUTUBE_API_KEY}`;
       
-      setResults(mockYouTubeResults);
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Failed to fetch videos');
+      }
+      
+      const videos: VideoResult[] = data.items.map((item: any) => ({
+        id: item.id.videoId,
+        title: item.snippet.title,
+        description: item.snippet.description,
+        thumbnail: item.snippet.thumbnails.medium.url,
+        publishedAt: item.snippet.publishedAt
+      }));
+      
+      setResults(videos);
     } catch (error) {
       console.error('Error searching YouTube', error);
       toast({
@@ -82,10 +89,8 @@ const Lectures = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const fullQuery = subject ? `${subject} ${searchQuery}` : searchQuery;
-    
-    if (fullQuery.trim()) {
-      searchYouTubeLectures(fullQuery);
+    if (searchQuery.trim()) {
+      searchYouTubeVideos(searchQuery);
     }
   };
 
@@ -110,13 +115,21 @@ const Lectures = () => {
                 <label htmlFor="subject" className="text-sm font-medium text-white/70 mb-1 block">
                   Subject
                 </label>
-                <Input
-                  id="subject"
-                  placeholder="e.g., Computer Science, Mathematics"
-                  className="border-college-gold/30 focus-visible:ring-college-gold bg-black/50 text-white"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                />
+                <Select value={subject} onValueChange={setSubject}>
+                  <SelectTrigger 
+                    id="subject"
+                    className="border-college-gold/30 focus-visible:ring-college-gold bg-black/50 text-white"
+                  >
+                    <SelectValue placeholder="Select a subject" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-black border-college-gold/20 text-white">
+                    {availableSubjects.map((subj) => (
+                      <SelectItem key={subj} value={subj}>
+                        {subj}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label htmlFor="topic" className="text-sm font-medium text-white/70 mb-1 block">
@@ -191,7 +204,6 @@ const Lectures = () => {
                 <div className="p-4 pt-0 mt-auto">
                   <Button 
                     className="w-full bg-transparent border border-college-gold text-college-gold hover:bg-college-gold hover:text-black"
-                    // In a real app, this would link to the actual video
                     onClick={() => window.open(`https://www.youtube.com/watch?v=${video.id}`, '_blank')}
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />

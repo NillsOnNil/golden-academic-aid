@@ -15,6 +15,9 @@ interface Message {
   timestamp: Date;
 }
 
+const GEMINI_API_KEY = 'AIzaSyBWdNy1-3VKXKCCFNs9R_iOIjQKEnxE9GU';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+
 const Assistant = () => {
   const location = useLocation();
   const initialQuery = location.state?.searchQuery || '';
@@ -36,33 +39,45 @@ const Assistant = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Mock LLM response function
-  // In a real application, this would connect to Google Gemini or another LLM API
-  const generateLLMResponse = async (query: string): Promise<string> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Mock responses based on keywords in the query
-    const queryLower = query.toLowerCase();
-    
-    if (queryLower.includes('hello') || queryLower.includes('hi')) {
-      return "Hello! I'm your college assistant. How can I help you today with your academic questions?";
+  // Generate response using Google Gemini API
+  const generateGeminiResponse = async (query: string): Promise<string> => {
+    try {
+      const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  text: `You are a helpful college assistant. Please answer the following question concisely and accurately: ${query}`
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 512,
+            topP: 0.8,
+            topK: 40
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Failed to generate response');
+      }
+
+      const data = await response.json();
+      return data.candidates[0].content.parts[0].text;
+    } catch (error) {
+      console.error('Error generating Gemini response:', error);
+      throw error;
     }
-    
-    if (queryLower.includes('exam') || queryLower.includes('test')) {
-      return "Exams can be challenging. Make sure to create a study schedule, review your notes regularly, and take practice tests. Would you like more specific study strategies for a particular subject?";
-    }
-    
-    if (queryLower.includes('assignment') || queryLower.includes('homework')) {
-      return "For assignments, start early and break them into smaller tasks. Use the college library resources and don't hesitate to ask your professors for clarification during office hours. Is there a specific assignment you need help with?";
-    }
-    
-    if (queryLower.includes('course') || queryLower.includes('class')) {
-      return "When selecting courses, consider your degree requirements, personal interests, and career goals. You might want to speak with your academic advisor to ensure you're on the right track with your course selections.";
-    }
-    
-    // Default response for other queries
-    return "That's an interesting question. As your college assistant, I can help with academic inquiries, study strategies, campus resources, and more. Could you provide more details so I can give you a more specific answer?";
   };
 
   const handleSendMessage = async (messageText: string = input) => {
@@ -81,8 +96,8 @@ const Assistant = () => {
     setLoading(true);
     
     try {
-      // Get response from LLM
-      const response = await generateLLMResponse(messageText);
+      // Get response from Gemini
+      const response = await generateGeminiResponse(messageText);
       
       // Add assistant response to chat
       const assistantMessage: Message = {
