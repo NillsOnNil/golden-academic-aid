@@ -1,36 +1,120 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { mockDb, Class, Assignment } from '../lib/mockDb';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { mockDb } from '../lib/mockDb';
+import { 
+  Sparkles, BookOpen, FileText, Clock, Bell, Lightbulb,
+  CalendarDays, Bookmark, GraduationCap, Brain, Bot, History,
+  MapPin
+} from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { BookOpen, FileText, Clock, Calendar, ArrowRight } from 'lucide-react';
+import { Message } from '@/types/assistant';
+import { assistantService } from '@/services/assistantService';
+import ChatInput from '@/components/Assistant/ChatInput';
+import MessageList from '@/components/Assistant/MessageList';
+import { useToast } from '@/components/ui/use-toast';
+import { Separator } from '@/components/ui/separator';
+import CampusNavigationWidget from '@/components/CampusNavigationWidget';
+
+interface SidebarItemProps {
+  icon: React.ReactNode;
+  text: string;
+  active?: boolean;
+  onClick: () => void;
+}
+
+const SidebarItem: React.FC<SidebarItemProps> = ({ icon, text, active, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center space-x-3 w-full rounded-md p-3 transition-colors
+      ${active 
+        ? 'bg-college-gold/20 text-college-gold' 
+        : 'text-white/80 hover:bg-gray-900 hover:text-white'
+      }`}
+  >
+    <div className="flex-shrink-0">{icon}</div>
+    <span className="text-sm font-medium">{text}</span>
+  </button>
+);
 
 const Dashboard = () => {
-  const { currentUser } = useAuth();
+  const { isAuthenticated, studentId } = useAuth();
   const navigate = useNavigate();
-  const [todayClasses, setTodayClasses] = useState<Class[]>([]);
-  const [upcomingAssignments, setUpcomingAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [studentName, setStudentName] = useState('Student');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const { toast } = useToast();
+  
+  // New chat function
+  const startNewChat = () => {
+    setMessages([]);
+  };
 
   useEffect(() => {
-    if (currentUser) {
-      // Fetch today's classes
-      const classes = mockDb.getStudentClasses(currentUser.student_id);
-      setTodayClasses(classes.slice(0, 3)); // Limit to 3 for demonstration
-      
-      // Fetch upcoming assignments
-      const assignments = mockDb.getStudentAssignments(currentUser.student_id);
-      // Sort by due date
-      const sortedAssignments = [...assignments].sort((a, b) => 
-        new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
-      );
-      setUpcomingAssignments(sortedAssignments.slice(0, 3)); // Limit to 3
+    if (isAuthenticated && studentId) {
+      // Find student name
+      const student = mockDb.students.find(s => s.student_id === studentId);
+      if (student) {
+        setStudentName(student.name);
+      }
       
       setLoading(false);
+      
+      // Welcome message
+      const welcomeMessage: Message = {
+        id: 'welcome',
+        content: `Namaste ${student?.name.split(' ')[0] || 'Student'}, I'm AIcharya. How can I assist you with your studies today?`,
+        role: 'assistant',
+        timestamp: new Date()
+      };
+      
+      setMessages([welcomeMessage]);
     }
-  }, [currentUser]);
+  }, [isAuthenticated, studentId]);
+
+  const handleSendMessage = async (messageText: string) => {
+    if (!messageText.trim()) return;
+    
+    // Add user message to chat
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content: messageText,
+      role: 'user',
+      timestamp: new Date()
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    setChatLoading(true);
+    
+    try {
+      // Get response from our enhanced assistant service
+      const response = await assistantService.processQuery(messageText);
+      
+      // Add assistant response to chat
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: response,
+        role: 'assistant',
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error('Error generating response', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate a response. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  // Extract first name
+  const firstName = studentName.split(' ')[0] || 'Student';
 
   if (loading) {
     return (
@@ -41,147 +125,145 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Welcome section */}
-      <div className="bg-black rounded-lg p-6 border border-college-gold/20">
-        <h1 className="text-2xl font-bold text-white mb-2">
-          Welcome back, {currentUser?.name}
-        </h1>
-        <p className="text-white/70">
-          Student ID: <span className="text-college-gold">{currentUser?.student_id}</span>
-        </p>
-      </div>
-
-      {/* Quick search */}
-      <Card className="bg-black border-college-gold/20">
-        <CardHeader>
-          <CardTitle className="text-white">How can we help you today?</CardTitle>
-          <CardDescription className="text-white/70">
-            Search for information or ask any question
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            <Button 
-              variant="outline" 
-              className="justify-start text-white border-college-gold/30 hover:bg-college-gold/10"
+    <div className="flex h-[calc(100vh-8rem)]">
+      {/* Sidebar */}
+      <div className="w-64 flex-shrink-0 bg-black border-r border-college-gold/20 flex flex-col">
+        {/* New Chat Button */}
+        <div className="p-3">
+          <Button 
+            className="w-full bg-college-gold hover:bg-college-gold/80 text-black p-5 mb-4"
+            onClick={startNewChat}
+          >
+            <Sparkles className="h-4 w-4 mr-2" /> New Chat
+          </Button>
+        </div>
+        
+        <ScrollArea className="flex-grow px-3 py-2">
+          <div className="space-y-1">
+            <SidebarItem 
+              icon={<Bot className="h-5 w-5" />} 
+              text="AI Chat" 
+              active={true}
+              onClick={() => {}}
+            />
+            
+            <SidebarItem 
+              icon={<CalendarDays className="h-5 w-5" />} 
+              text="Classes"
               onClick={() => navigate('/dashboard/classes')}
-            >
-              <Calendar className="mr-2 h-4 w-4 text-college-gold" />
-              View my class schedule
-            </Button>
-            <Button 
-              variant="outline" 
-              className="justify-start text-white border-college-gold/30 hover:bg-college-gold/10"
+            />
+            
+            <SidebarItem 
+              icon={<FileText className="h-5 w-5" />} 
+              text="Assignments"
               onClick={() => navigate('/dashboard/assignments')}
-            >
-              <FileText className="mr-2 h-4 w-4 text-college-gold" />
-              Check my assignments
-            </Button>
-            <Button 
-              variant="outline" 
-              className="justify-start text-white border-college-gold/30 hover:bg-college-gold/10"
+            />
+            
+            <SidebarItem 
+              icon={<Bell className="h-5 w-5" />} 
+              text="Reminders"
+              onClick={() => navigate('/dashboard/reminders')}
+            />
+            
+            <SidebarItem 
+              icon={<BookOpen className="h-5 w-5" />} 
+              text="Study Materials"
               onClick={() => navigate('/dashboard/study-materials')}
-            >
-              <BookOpen className="mr-2 h-4 w-4 text-college-gold" />
-              Browse study materials
-            </Button>
-            <Button 
-              variant="outline" 
-              className="justify-start text-white border-college-gold/30 hover:bg-college-gold/10"
-              onClick={() => navigate('/dashboard/assistant')}
-            >
-              <Clock className="mr-2 h-4 w-4 text-college-gold" />
-              Ask the AI assistant
-            </Button>
+            />
+            
+            <SidebarItem 
+              icon={<MapPin className="h-5 w-5" />} 
+              text="Campus Map"
+              onClick={() => navigate('/dashboard/campus-navigation')}
+            />
           </div>
-        </CardContent>
-      </Card>
+          
+          <Separator className="my-4 bg-college-gold/20" />
+          
+          <div className="space-y-1">
+            <h3 className="text-xs font-medium text-white/50 px-3 mb-2">SUGGESTED PROMPTS</h3>
+            
+            <div className="space-y-2 text-sm">
+              <button 
+                className="w-full p-2 text-left rounded-md text-white/70 hover:bg-college-gold/10 hover:text-college-gold border border-college-gold/30"
+                onClick={() => handleSendMessage("!Show me my pending assignments")}
+              >
+                !Show me my pending assignments
+              </button>
+              
+              <button 
+                className="w-full p-2 text-left rounded-md text-white/70 hover:bg-college-gold/10 hover:text-college-gold border border-college-gold/30"
+                onClick={() => handleSendMessage("!What classes do I have today?")}
+              >
+                !What classes do I have today?
+              </button>
+              
+              <button 
+                className="w-full p-2 text-left rounded-md text-white/70 hover:bg-college-gold/10 hover:text-college-gold border border-college-gold/30"
+                onClick={() => handleSendMessage("Where is the Administration Block?")}
+              >
+                Where is the Administration Block?
+              </button>
+              
+              <button 
+                className="w-full p-2 text-left rounded-md text-white/70 hover:bg-college-gold/10 hover:text-college-gold border border-college-gold/30"
+                onClick={() => handleSendMessage("What's near the Central Library?")}
+              >
+                What's near the Central Library?
+              </button>
+              
+              <button 
+                className="w-full p-2 text-left rounded-md text-white/70 hover:bg-college-gold/10 hover:text-college-gold border border-college-gold/30"
+                onClick={() => handleSendMessage("How far is the Cafeteria from the Tennis Court?")}
+              >
+                How far is the Cafeteria from the Tennis Court?
+              </button>
+              
+              <button 
+                className="w-full p-2 text-left rounded-md text-white/70 hover:bg-college-gold/10 hover:text-college-gold border border-college-gold/30"
+                onClick={() => handleSendMessage("!Create a study plan for my upcoming exams")}
+              >
+                !Create a study plan for my upcoming exams
+              </button>
+            </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Today's classes */}
-        <Card className="bg-black text-white border-college-gold/20">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Calendar className="mr-2 h-5 w-5 text-college-gold" />
-              Today's Classes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {todayClasses.length > 0 ? (
-              <div className="space-y-4">
-                {todayClasses.map((classItem) => (
-                  <div 
-                    key={classItem.class_id} 
-                    className="p-3 rounded bg-black border border-college-gold/20 hover:bg-college-gold/5"
-                  >
-                    <h3 className="font-medium text-college-gold">{classItem.course_name}</h3>
-                    <div className="text-sm text-white/70 mt-1">
-                      <p>{classItem.start_time} - {classItem.end_time}</p>
-                      <p>{classItem.location}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-white/70">No classes scheduled for today.</p>
-            )}
-          </CardContent>
-          <CardFooter>
-            <Button 
-              variant="link" 
-              className="text-college-gold p-0 hover:text-college-gold/80"
-              onClick={() => navigate('/dashboard/classes')}
-            >
-              View all classes <ArrowRight className="ml-1 h-4 w-4" />
-            </Button>
-          </CardFooter>
-        </Card>
-
-        {/* Upcoming assignments */}
-        <Card className="bg-black text-white border-college-gold/20">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <FileText className="mr-2 h-5 w-5 text-college-gold" />
-              Upcoming Assignments
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {upcomingAssignments.length > 0 ? (
-              <div className="space-y-4">
-                {upcomingAssignments.map((assignment) => (
-                  <div 
-                    key={assignment.assignment_id} 
-                    className="p-3 rounded bg-black border border-college-gold/20 hover:bg-college-gold/5"
-                  >
-                    <h3 className="font-medium text-college-gold">{assignment.title}</h3>
-                    <div className="flex justify-between items-center mt-1">
-                      <p className="text-sm text-white/70">Due: {new Date(assignment.due_date).toLocaleDateString()}</p>
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        assignment.status === 'pending' ? 'bg-yellow-500/20 text-yellow-300' :
-                        assignment.status === 'submitted' ? 'bg-blue-500/20 text-blue-300' :
-                        'bg-green-500/20 text-green-300'
-                      }`}>
-                        {assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-white/70">No upcoming assignments.</p>
-            )}
-          </CardContent>
-          <CardFooter>
-            <Button 
-              variant="link" 
-              className="text-college-gold p-0 hover:text-college-gold/80"
-              onClick={() => navigate('/dashboard/assignments')}
-            >
-              View all assignments <ArrowRight className="ml-1 h-4 w-4" />
-            </Button>
-          </CardFooter>
-        </Card>
+            <div className="mt-3 px-2 text-xs text-white/50">
+              <p>Use ! prefix to access database commands</p>
+            </div>
+          </div>
+        </ScrollArea>
+        
+        {/* User profile section */}
+        <div className="p-3 border-t border-college-gold/20">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 rounded-full bg-college-gold/20 flex items-center justify-center">
+              <GraduationCap className="h-4 w-4 text-college-gold" />
+            </div>
+            <div className="flex-1 truncate">
+              <p className="text-sm font-medium text-white truncate">{studentName}</p>
+              <p className="text-xs text-white/50 truncate">{studentId}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col bg-gray-950">
+        {/* Chat header */}
+        <div className="p-4 border-b border-college-gold/20 flex items-center">
+          <Sparkles className="h-6 w-6 text-college-gold mr-2" />
+          <h2 className="text-xl font-semibold text-white">AIcharya</h2>
+        </div>
+        
+        {/* Chat messages */}
+        <ScrollArea className="flex-1 p-4">
+          <MessageList messages={messages} loading={chatLoading} />
+        </ScrollArea>
+        
+        {/* Input area */}
+        <div className="border-t border-college-gold/20 p-4">
+          <ChatInput onSendMessage={handleSendMessage} loading={chatLoading} />
+        </div>
       </div>
     </div>
   );

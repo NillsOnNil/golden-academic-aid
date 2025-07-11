@@ -1,11 +1,11 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { 
-  BookOpen, Search, Bell, Settings, Menu, X, LogOut,
-  BookOpenCheck, Book, FileText, Video, CalendarDays, User
+  Sparkles, Search, Bell, Settings, Menu, X, LogOut,
+  BookOpenCheck, Book, FileText, Video, CalendarDays, User,
+  MapPin
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -15,14 +15,26 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import SearchBar from './SearchBar';
+import { mockDb } from '../lib/mockDb';
 
 const MainLayout: React.FC = () => {
-  const { currentUser, logout } = useAuth();
+  const { isAuthenticated, studentId, logout } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [studentName, setStudentName] = useState('');
+
+  useEffect(() => {
+    if (isAuthenticated && studentId) {
+      // Fetch student name
+      const student = mockDb.students.find(s => s.student_id === studentId);
+      if (student) {
+        setStudentName(student.name);
+      }
+    }
+  }, [isAuthenticated, studentId]);
 
   // If not logged in, redirect to login page
-  if (!currentUser) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
@@ -46,8 +58,8 @@ const MainLayout: React.FC = () => {
         <div className="container px-4 sm:px-6 lg:px-8 mx-auto flex justify-between items-center h-16">
           {/* Logo and brand */}
           <Link to="/dashboard" className="flex items-center space-x-2">
-            <BookOpen className="h-6 w-6 text-college-gold" />
-            <span className="font-bold text-lg text-white hidden sm:inline">College ERP</span>
+            <Sparkles className="h-6 w-6 text-college-gold" />
+            <span className="font-bold text-lg text-white hidden sm:inline">AIcharya</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -80,6 +92,14 @@ const MainLayout: React.FC = () => {
               </Button>
             </Link>
 
+            {/* Campus Navigation */}
+            <Link to="/dashboard/campus-navigation">
+              <Button variant="ghost" className={`text-white hover:bg-college-gold/10 hover:text-college-gold ${isActive('/dashboard/campus-navigation') ? 'bg-college-gold/10 text-college-gold' : ''}`}>
+                <MapPin className="h-5 w-5 mr-2" />
+                Campus Map
+              </Button>
+            </Link>
+
             {/* Settings */}
             <Link to="/dashboard/settings">
               <Button variant="ghost" className={`text-white hover:bg-college-gold/10 hover:text-college-gold ${isActive('/dashboard/settings') ? 'bg-college-gold/10 text-college-gold' : ''}`}>
@@ -100,7 +120,7 @@ const MainLayout: React.FC = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="text-white hover:bg-college-gold/10 hover:text-college-gold">
                   <User className="h-5 w-5" />
-                  <span className="ml-2 hidden sm:inline">{currentUser.name}</span>
+                  <span className="ml-2 hidden sm:inline">{studentName || studentId}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-black border border-college-gold/20 text-white">
@@ -158,6 +178,15 @@ const MainLayout: React.FC = () => {
               </Link>
               
               <Link 
+                to="/dashboard/campus-navigation"
+                className={`flex items-center space-x-2 p-2 rounded hover:bg-college-gold/10 ${location.pathname === '/dashboard/campus-navigation' ? 'bg-college-gold/10 text-college-gold' : 'text-white'}`}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <MapPin className="h-5 w-5" />
+                <span>Campus Map</span>
+              </Link>
+              
+              <Link 
                 to="/dashboard/settings"
                 className={`flex items-center space-x-2 p-2 rounded hover:bg-college-gold/10 ${location.pathname === '/dashboard/settings' ? 'bg-college-gold/10 text-college-gold' : 'text-white'}`}
                 onClick={() => setMobileMenuOpen(false)}
@@ -187,7 +216,7 @@ const MainLayout: React.FC = () => {
       {/* Footer */}
       <footer className="py-4 bg-black text-white/60 text-center text-sm">
         <div className="container mx-auto">
-          <p>© {new Date().getFullYear()} College ERP + LLM Portal</p>
+          <p>© {new Date().getFullYear()} AIcharya - Your Personalized Learning Assistant</p>
         </div>
       </footer>
     </div>

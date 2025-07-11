@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BadgeCheck, Clock, FileText, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import AddReminderButton from '@/components/AddReminderButton';
 
 const Assignments = () => {
   const { currentUser } = useAuth();
@@ -14,11 +14,21 @@ const Assignments = () => {
   const searchQuery = location.state?.searchQuery || '';
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [studentName, setStudentName] = useState('');
   
   useEffect(() => {
+    console.log("Current User in Assignments:", currentUser);
+    
     if (currentUser) {
+      // Fetch student name
+      const student = mockDb.students.find(s => s.student_id === currentUser.student_id);
+      if (student) {
+        setStudentName(student.name);
+      }
+      
       // Fetch all assignments for the current student
       const allAssignments = mockDb.getStudentAssignments(currentUser.student_id);
+      console.log("Retrieved Assignments:", allAssignments);
       
       // Apply search filter if provided
       if (searchQuery) {
@@ -40,6 +50,13 @@ const Assignments = () => {
   const pending = assignments.filter(a => a.status === 'pending');
   const submitted = assignments.filter(a => a.status === 'submitted');
   const graded = assignments.filter(a => a.status === 'graded');
+  
+  console.log("Assignments by status:", { 
+    pending: pending.length, 
+    submitted: submitted.length, 
+    graded: graded.length,
+    total: assignments.length
+  });
 
   // Sort assignments by due date
   const sortByDueDate = (a: Assignment, b: Assignment) => 
@@ -72,6 +89,14 @@ const Assignments = () => {
           <div className="flex items-center mt-3 text-white/70">
             <Clock className="h-4 w-4 mr-2 text-college-gold/80" />
             <span>Due: {new Date(assignment.due_date).toLocaleDateString()}</span>
+          </div>
+
+          <div className="mt-3">
+            <AddReminderButton 
+              title={`${assignment.title} Due`}
+              description={`Assignment for ${assignment.course_name} - ${studentName}: ${assignment.description}`}
+              date={assignment.due_date}
+            />
           </div>
         </div>
         

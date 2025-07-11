@@ -1,11 +1,11 @@
-
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { mockDb, Class } from '../lib/mockDb';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, MapPin } from 'lucide-react';
+import { Calendar, Clock, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
+import AddReminderButton from '@/components/AddReminderButton';
 
 const Classes = () => {
   const { currentUser } = useAuth();
@@ -13,11 +13,22 @@ const Classes = () => {
   const searchQuery = location.state?.searchQuery || '';
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
+  // Track expanded days for dropdowns
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({
+    'Monday': true,    // Monday expanded by default
+    'Tuesday': false,
+    'Wednesday': false,
+    'Thursday': false,
+    'Friday': false
+  });
   
   useEffect(() => {
+    console.log("Current User:", currentUser);
+    
     if (currentUser) {
       // Fetch all classes for the current student
       const allClasses = mockDb.getStudentClasses(currentUser.student_id);
+      console.log("Retrieved Classes:", allClasses);
       
       // Apply search filter if provided
       if (searchQuery) {
@@ -36,15 +47,37 @@ const Classes = () => {
   // Group classes by days for weekly view
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   
-  // We're simulating classes spread across different days for demonstration
-  const classesByDay = daysOfWeek.map((day, index) => {
-    // In a real app, classes would be filtered based on their actual day
-    // Here we're just distributing them among weekdays for demonstration
+  // Use the day property from class objects to group classes and sort by time
+  const classesByDay = daysOfWeek.map(day => {
+    const dayClasses = classes.filter(classItem => classItem.day === day);
+    
+    // Sort classes by start time
+    const sortedClasses = dayClasses.sort((a, b) => {
+      // Convert times like "9:00" to minutes for comparison
+      const getMinutes = (timeStr: string) => {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return hours * 60 + minutes;
+      };
+      
+      return getMinutes(a.start_time) - getMinutes(b.start_time);
+    });
+    
     return {
       day,
-      classes: classes.filter((_, i) => i % daysOfWeek.length === index)
+      classes: sortedClasses
     };
   });
+  
+  // Log the distributed classes
+  console.log("Classes By Day:", classesByDay);
+
+  // Toggle expanded state for a day
+  const toggleDayExpanded = (day: string) => {
+    setExpandedDays(prev => ({
+      ...prev,
+      [day]: !prev[day]
+    }));
+  };
 
   if (loading) {
     return (
@@ -91,35 +124,56 @@ const Classes = () => {
           <div className="space-y-6">
             {classesByDay.map((daySchedule) => (
               <Card key={daySchedule.day} className="bg-black text-white border-college-gold/20">
-                <CardHeader>
+                <CardHeader 
+                  className="cursor-pointer flex flex-row items-center justify-between"
+                  onClick={() => toggleDayExpanded(daySchedule.day)}
+                >
                   <CardTitle className="text-college-gold">{daySchedule.day}</CardTitle>
+                  <div className="flex items-center">
+                    <span className="text-sm text-white/70 mr-2">
+                      {daySchedule.classes.length} {daySchedule.classes.length === 1 ? 'class' : 'classes'}
+                    </span>
+                    {expandedDays[daySchedule.day] ? 
+                      <ChevronUp className="h-5 w-5 text-college-gold" /> : 
+                      <ChevronDown className="h-5 w-5 text-college-gold" />
+                    }
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  {daySchedule.classes.length > 0 ? (
-                    <div className="space-y-4">
-                      {daySchedule.classes.map((classItem) => (
-                        <div 
-                          key={classItem.class_id} 
-                          className="p-4 rounded bg-black border border-college-gold/20 hover:bg-college-gold/5"
-                        >
-                          <h3 className="font-semibold text-college-gold">{classItem.course_name}</h3>
-                          <div className="grid gap-2 mt-2">
-                            <div className="flex items-center text-white/70">
-                              <Clock className="h-4 w-4 mr-2 text-college-gold/80" />
-                              <span>{classItem.start_time} - {classItem.end_time}</span>
+                {expandedDays[daySchedule.day] && (
+                  <CardContent>
+                    {daySchedule.classes.length > 0 ? (
+                      <div className="space-y-4">
+                        {daySchedule.classes.map((classItem) => (
+                          <div 
+                            key={classItem.class_id} 
+                            className="p-4 rounded bg-black border border-college-gold/20 hover:bg-college-gold/5"
+                          >
+                            <h3 className="font-semibold text-college-gold">{classItem.course_name}</h3>
+                            <div className="grid gap-2 mt-2">
+                              <div className="flex items-center text-white/70">
+                                <Clock className="h-4 w-4 mr-2 text-college-gold/80" />
+                                <span>{classItem.start_time} - {classItem.end_time}</span>
+                              </div>
+                              <div className="flex items-center text-white/70">
+                                <MapPin className="h-4 w-4 mr-2 text-college-gold/80" />
+                                <span>{classItem.location}</span>
+                              </div>
                             </div>
-                            <div className="flex items-center text-white/70">
-                              <MapPin className="h-4 w-4 mr-2 text-college-gold/80" />
-                              <span>{classItem.location}</span>
+                            <div className="mt-3 flex justify-end">
+                              <AddReminderButton 
+                                title={`${classItem.course_name} Class`}
+                                description={`Class at ${classItem.location} from ${classItem.start_time} to ${classItem.end_time}`}
+                                time={classItem.start_time}
+                              />
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-white/70">No classes scheduled for {daySchedule.day}.</p>
-                  )}
-                </CardContent>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-white/70">No classes scheduled for {daySchedule.day}.</p>
+                    )}
+                  </CardContent>
+                )}
               </Card>
             ))}
           </div>
@@ -157,6 +211,13 @@ const Classes = () => {
                               <Calendar className="h-4 w-4 mr-2 text-college-gold/80" />
                               <span>Class ID: {classItem.class_id}</span>
                             </div>
+                          </div>
+                          <div className="mt-3">
+                            <AddReminderButton 
+                              title={`${classItem.course_name} Class`}
+                              description={`Class at ${classItem.location} from ${classItem.start_time} to ${classItem.end_time}`}
+                              time={classItem.start_time}
+                            />
                           </div>
                         </div>
                       </div>

@@ -1,88 +1,72 @@
-
-import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
-import { mockDb, Student } from '../lib/mockDb';
-
-// Omit password from the student type for security
-type AuthStudent = Omit<Student, 'password'>;
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 interface AuthContextType {
-  currentUser: AuthStudent | null;
-  loading: boolean;
+  isAuthenticated: boolean;
+  studentId: string;
+  error: string | null;
   login: (studentId: string, password: string) => Promise<boolean>;
   logout: () => void;
-  error: string | null;
+  currentUser: { student_id: string } | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Auth Provider component
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<AuthStudent | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
+    localStorage.getItem('isAuthenticated') === 'true'
+  );
+  const [studentId, setStudentId] = useState<string>(
+    localStorage.getItem('studentId') || 'AGS22BCDS001'
+  );
   const [error, setError] = useState<string | null>(null);
 
-  // Check for stored user on initial load
-  useEffect(() => {
-    const storedUser = localStorage.getItem('currentUser');
-    if (storedUser) {
-      try {
-        setCurrentUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error('Failed to parse stored user', e);
-        localStorage.removeItem('currentUser');
-      }
-    }
-    setLoading(false);
-  }, []);
+  // Create currentUser object based on authentication status
+  const currentUser = isAuthenticated ? { student_id: studentId } : null;
 
-  // Login function
   const login = async (studentId: string, password: string): Promise<boolean> => {
-    setError(null);
+    // This would be a real API call in production
     try {
-      setLoading(true);
-      // In a real app, this would be an API call
-      const user = mockDb.authenticate(studentId, password);
+      setError(null);
       
-      if (user) {
-        setCurrentUser(user);
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        return true;
-      } else {
-        setError('Invalid student ID or password');
+      // Simple validation for demo mode
+      if (!studentId.match(/^AGS22BCDS\d{3}$/)) {
+        setError('Invalid Student ID format. Use format: AGS22BCDS001');
         return false;
       }
-    } catch (err) {
-      setError('An error occurred during login');
-      console.error(err);
+      
+      if (password !== 'password123') {
+        setError('Invalid password. Use: password123');
+        return false;
+      }
+      
+      // Mock successful login
+      setIsAuthenticated(true);
+      setStudentId(studentId);
+      localStorage.setItem('isAuthenticated', 'true');
+      localStorage.setItem('studentId', studentId);
+      return true;
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('An unexpected error occurred. Please try again.');
       return false;
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Logout function
   const logout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('currentUser');
-  };
-
-  const value = {
-    currentUser,
-    loading,
-    login,
-    logout,
-    error
+    setIsAuthenticated(false);
+    setError(null);
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('studentId');
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ isAuthenticated, studentId, error, login, logout, currentUser }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Custom hook to use the auth context
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');

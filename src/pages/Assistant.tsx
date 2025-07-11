@@ -1,12 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { BrainCircuit } from 'lucide-react';
+import { BrainCircuit, Database } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Message } from '@/types/assistant';
-import { generateGeminiResponse } from '@/services/geminiService';
+import { assistantService } from '@/services/assistantService';
 
 // Import refactored components
 import ChatInput from '@/components/Assistant/ChatInput';
@@ -41,8 +40,8 @@ const Assistant = () => {
     setLoading(true);
     
     try {
-      // Get response from Gemini
-      const response = await generateGeminiResponse(messageText);
+      // Get response from our enhanced assistant service
+      const response = await assistantService.processQuery(messageText);
       
       // Add assistant response to chat
       const assistantMessage: Message = {
@@ -79,7 +78,7 @@ const Assistant = () => {
             <div>
               <CardTitle className="text-white">College Assistant</CardTitle>
               <CardDescription className="text-white/70">
-                Ask me anything about your courses, assignments, or general academic questions
+                Ask me anything about your courses, assignments, schedule, or general academic questions
               </CardDescription>
             </div>
           </div>
@@ -92,6 +91,10 @@ const Assistant = () => {
           
           <CardContent className="border-t border-college-gold/20 p-4">
             <ChatInput onSendMessage={handleSendMessage} loading={loading} />
+            <div className="flex items-center mt-2 text-xs text-white/50">
+              <Database className="h-3 w-3 mr-1 text-college-gold/80" />
+              <span>Tip: Use <span className="text-college-gold font-medium">!</span> to directly query the database (e.g., "!schedule", "!assignments")</span>
+            </div>
           </CardContent>
         </div>
       </Card>

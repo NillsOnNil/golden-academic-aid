@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,6 +15,7 @@ import Lectures from "./pages/Lectures";
 import Reminders from "./pages/Reminders";
 import Settings from "./pages/Settings";
 import Assistant from "./pages/Assistant";
+import CampusNavigation from "./pages/CampusNavigation";
 import NotFound from "./pages/NotFound";
 import MainLayout from "./components/MainLayout";
 
@@ -42,6 +42,7 @@ const App = () => (
               <Route path="reminders" element={<Reminders />} />
               <Route path="settings" element={<Settings />} />
               <Route path="assistant" element={<Assistant />} />
+              <Route path="campus-navigation" element={<CampusNavigation />} />
             </Route>
             
             {/* Redirect root to dashboard */}
